@@ -10,7 +10,8 @@ const openAi = new OpenAI({
 });
 
 async function analyseIssue(req, res) {
-  console.log("called");
+  const body = req.body;
+
   try {
     const response = await openAi.responses.create({
       model: "gpt-4.1-mini",
@@ -40,7 +41,8 @@ Keep steps concise and practical`,
           content: [
             {
               type: "input_text",
-              text: "I’m hitting an issue where my DELETE request fails whenever I include a JSON body. The server responds with an error saying DELETE with a payload isn’t supported.\n",
+              // text: "I’m hitting an issue where my DELETE request fails whenever I include a JSON body. The server responds with an error saying DELETE with a payload isn’t supported.\n",
+              text: body.userError,
             },
           ],
         },
