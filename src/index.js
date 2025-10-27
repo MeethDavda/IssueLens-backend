@@ -16,7 +16,10 @@ const limiter = rateLimit({
 
 const corsOptions = {
   credentials: true,
-  origin: ["*"],
+  origin: [
+    "http://localhost:3000",
+    "https://issuelens-frontend.appwrite.network/",
+  ],
 };
 app.use(cors(corsOptions));
 // app.use(limiter);
