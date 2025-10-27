@@ -18,7 +18,8 @@ const corsOptions = {
   credentials: true,
   origin: [
     "http://localhost:3000",
-    "https://issuelens-frontend.appwrite.network/",
+    "https://issuelens-frontend.appwrite.network",
+    "http://192.168.1.36:3000",
   ],
 };
 app.use(cors(corsOptions));
