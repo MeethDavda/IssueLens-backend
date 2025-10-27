@@ -77,6 +77,7 @@ Keep steps concise and practical`,
 
 async function getResetTime(req, res) {
   const body = req.body;
+  const now = new Date();
   const fingerPrintString = fingerPrint(req);
   try {
     const checkIfuserExist = await tablesDB.listRows({
@@ -85,18 +86,37 @@ async function getResetTime(req, res) {
       queries: [Query.equal("client_fingerprint", fingerPrintString)],
     });
     if (checkIfuserExist.total !== 0) {
-      const getTime = await tablesDB.listRows({
-        databaseId: process.env.DATABASE_ID,
-        tableId: "query_table",
-        queries: [Query.equal("client_fingerprint", fingerPrintString)],
-      });
-      const resBody = {
-        resetTime: getTime.rows[0].reset_time,
-        remaining_queries: getTime.rows[0].queries_remaining,
-      };
-      res.status(200).json({ resBody });
+      if (checkIfuserExist.rows[0].reset_time - now.getTime() < 0) {
+        const getUser = await tablesDB.listRows({
+          databaseId: process.env.DATABASE_ID,
+          tableId: "query_table",
+          queries: [Query.equal("client_fingerprint", fingerPrintString)],
+        });
+        const resetAt = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+        const updateUser = await tablesDB.updateRow({
+          databaseId: process.env.DATABASE_ID,
+          tableId: "query_table",
+          rowId: getUser.rows[0].$id,
+          data: { queries_remaining: 5, reset_time: resetAt.getTime() },
+        });
+        const resBody = {
+          resetTime: resetAt.getTime(),
+          remaining_queries: 5,
+        };
+        res.status(200).json({ resBody });
+      } else {
+        const getTime = await tablesDB.listRows({
+          databaseId: process.env.DATABASE_ID,
+          tableId: "query_table",
+          queries: [Query.equal("client_fingerprint", fingerPrintString)],
+        });
+        const resBody = {
+          resetTime: getTime.rows[0].reset_time,
+          remaining_queries: getTime.rows[0].queries_remaining,
+        };
+        res.status(200).json({ resBody });
+      }
     } else {
-      const now = new Date();
       const resetAt = new Date(now.getTime() + 12 * 60 * 60 * 1000);
       const addUser = await tablesDB.createRow({
         databaseId: process.env.DATABASE_ID,
@@ -108,9 +128,12 @@ async function getResetTime(req, res) {
           reset_time: resetAt.getTime(),
         },
       });
+      return res.status(200).json({
+        resBody: { resetTime: resetAt.getTime(), remaining_queries: 5 },
+      });
     }
   } catch (error) {
-    console.log(error);
+    return res.status(500).json({ error: "Failed to get reset time" });
   }
 }
 
@@ -126,7 +149,7 @@ async function analyseIssue(req, res) {
       queries: [Query.equal("client_fingerprint", fingerPrintString)],
     });
     //1761510157335
-    if (checkIfuserExist) {
+    if (checkIfuserExist.total > 0) {
       if (checkIfuserExist.rows[0].reset_time - now.getTime() < 0) {
         const getUser = await tablesDB.listRows({
           databaseId: process.env.DATABASE_ID,
@@ -140,7 +163,11 @@ async function analyseIssue(req, res) {
           rowId: getUser.rows[0].$id,
           data: { queries_remaining: 5, reset_time: resetAt.getTime() },
         });
-        return;
+        const resBody = {
+          resetTime: updateUser.rows[0].reset_time,
+          remaining_queries: updateUser.rows[0].queries_remaining,
+        };
+        return res.status(200).json({ resBody });
       } else if (checkIfuserExist.rows[0].queries_remaining <= 0) {
         return res.status(429).json({ error: "Daily limit exceeded" });
       } else if (
@@ -166,7 +193,7 @@ async function analyseIssue(req, res) {
     }
   } catch (error) {
     console.log(error);
-    res.json({ message: error.message });
+    return res.status(500).json({ error: "Failed to analyse issue" });
   }
 }
 
