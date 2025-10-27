@@ -166,6 +166,7 @@ async function analyseIssue(req, res) {
     }
   } catch (error) {
     console.log(error);
+    res.json({ message: error.message });
   }
 }
 
