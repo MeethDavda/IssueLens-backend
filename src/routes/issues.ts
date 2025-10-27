@@ -79,16 +79,36 @@ async function getResetTime(req, res) {
   const body = req.body;
   const fingerPrintString = fingerPrint(req);
   try {
-    const getTime = await tablesDB.listRows({
+    const checkIfuserExist = await tablesDB.listRows({
       databaseId: process.env.DATABASE_ID,
       tableId: "query_table",
       queries: [Query.equal("client_fingerprint", fingerPrintString)],
     });
-    const resBody = {
-      resetTime: getTime.rows[0].reset_time,
-      remaining_queries: getTime.rows[0].queries_remaining,
-    };
-    res.status(200).json({ resBody });
+    if (checkIfuserExist.total !== 0) {
+      const getTime = await tablesDB.listRows({
+        databaseId: process.env.DATABASE_ID,
+        tableId: "query_table",
+        queries: [Query.equal("client_fingerprint", fingerPrintString)],
+      });
+      const resBody = {
+        resetTime: getTime.rows[0].reset_time,
+        remaining_queries: getTime.rows[0].queries_remaining,
+      };
+      res.status(200).json({ resBody });
+    } else {
+      const now = new Date();
+      const resetAt = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+      const addUser = await tablesDB.createRow({
+        databaseId: process.env.DATABASE_ID,
+        tableId: "query_table",
+        rowId: ID.unique(),
+        data: {
+          client_fingerprint: fingerPrintString,
+          queries_remaining: 5,
+          reset_time: resetAt.getTime(),
+        },
+      });
+    }
   } catch (error) {
     console.log(error);
   }
@@ -120,7 +140,6 @@ async function analyseIssue(req, res) {
           rowId: getUser.rows[0].$id,
           data: { queries_remaining: 5, reset_time: resetAt.getTime() },
         });
-        console.log(updateUser, "upadate");
         return;
       } else if (checkIfuserExist.rows[0].queries_remaining <= 0) {
         return res.status(429).json({ error: "Daily limit exceeded" });
