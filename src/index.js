@@ -20,6 +20,7 @@ const corsOptions = {
     "http://localhost:3000",
     "https://issuelens-frontend.appwrite.network",
     "http://192.168.1.36:3000",
+    "https://issue-lens-frontend.vercel.app/",
   ],
 };
 app.use(cors(corsOptions));
